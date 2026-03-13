@@ -14,7 +14,6 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle,
-  Home,
   Loader2,
   Plus,
   Trash2,
@@ -29,23 +28,6 @@ import {
   useCreateCourse,
 } from "../hooks/useQueries";
 import type { ThemeConfig } from "../utils/seasonalTheme";
-
-const DEFAULT_CATEGORIES = [
-  { id: BigInt(1), name: "Mathematics" },
-  { id: BigInt(2), name: "Science" },
-  { id: BigInt(3), name: "Programming" },
-  { id: BigInt(4), name: "History" },
-  { id: BigInt(5), name: "Languages" },
-  { id: BigInt(6), name: "Arts" },
-  { id: BigInt(7), name: "Business" },
-  { id: BigInt(8), name: "Gaming" },
-  { id: BigInt(9), name: "Sports" },
-  { id: BigInt(10), name: "AI" },
-  { id: BigInt(11), name: "Video Editing" },
-  { id: BigInt(12), name: "Music" },
-  { id: BigInt(13), name: "Technology" },
-  { id: BigInt(14), name: "Health & Wellness" },
-];
 
 interface CreateCoursePageProps {
   theme: ThemeConfig;
@@ -142,15 +124,9 @@ export default function CreateCoursePage({
     { id: 3, title: "", type: LessonType.text, videoUrl: "", textContent: "" },
   ]);
 
-  const { data: backendCategories } = useAllCategories();
+  const { data: categories } = useAllCategories();
   const { data: profile } = useCallerProfile();
   const createCourse = useCreateCourse();
-
-  // Use backend categories if available and non-empty, otherwise fall back to defaults
-  const categories =
-    backendCategories && backendCategories.length > 0
-      ? backendCategories
-      : DEFAULT_CATEGORIES;
 
   if (!isLoggedIn) {
     return (
@@ -246,13 +222,11 @@ export default function CreateCoursePage({
     <main className="max-w-3xl mx-auto px-4 py-10">
       <button
         type="button"
-        data-ocid="create.back_home_button"
         onClick={() => onNavigate("home")}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        <Home className="w-4 h-4" />
-        Back to Home
+        Back
       </button>
 
       <h1 className="font-display text-3xl font-bold text-foreground mb-2">
@@ -315,7 +289,6 @@ export default function CreateCoursePage({
               </Label>
               <Input
                 id="title"
-                data-ocid="create.title.input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Complete JavaScript Mastery Course"
@@ -331,7 +304,6 @@ export default function CreateCoursePage({
               </Label>
               <Textarea
                 id="description"
-                data-ocid="create.description.textarea"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What will students learn? Who is this for?"
@@ -343,14 +315,11 @@ export default function CreateCoursePage({
                 Category *
               </Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger
-                  data-ocid="create.category.select"
-                  className="mt-1.5"
-                >
+                <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                  {(categories ?? []).map((cat) => (
                     <SelectItem
                       key={cat.id.toString()}
                       value={cat.id.toString()}
@@ -531,15 +500,6 @@ export default function CreateCoursePage({
                   Description
                 </span>
                 <p className="text-sm text-foreground mt-0.5">{description}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Category
-                </span>
-                <p className="text-sm text-foreground mt-0.5">
-                  {categories.find((c) => c.id.toString() === categoryId)
-                    ?.name ?? categoryId}
-                </p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">

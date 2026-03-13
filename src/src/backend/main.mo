@@ -124,33 +124,6 @@ actor {
   var categoryIdCounter = 0;
   let usedEmails = Set.empty<Text>();
 
-  // Seed default categories
-  let systemPrincipal = Principal.fromText("aaaaa-aa");
-  let seedTime = 0;
-  let defaultCategories = [
-    "Mathematics",
-    "Science",
-    "Programming",
-    "History",
-    "Languages",
-    "Arts",
-    "Business",
-    "Gaming",
-    "Sports",
-    "AI",
-    "Video Editing",
-    "Music",
-    "Technology",
-    "Health & Wellness",
-  ];
-  for (name in defaultCategories.values()) {
-    categoryIdCounter += 1;
-    categories.add(
-      categoryIdCounter,
-      { id = categoryIdCounter; name; createdBy = systemPrincipal; createdAt = seedTime },
-    );
-  };
-
   // Prefabricated Storage Mixins
   include MixinStorage();
 

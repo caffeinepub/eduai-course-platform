@@ -32,7 +32,6 @@ export default function Navbar({
           {/* Logo */}
           <button
             type="button"
-            data-ocid="nav.logo_home_link"
             onClick={() => onNavigate("home")}
             className="flex items-center gap-2 group"
           >
