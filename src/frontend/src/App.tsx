@@ -4,12 +4,21 @@ import Navbar from "./components/Navbar";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
+import CommunityPage from "./pages/CommunityPage";
+import CommunityPostPage from "./pages/CommunityPostPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CreateCoursePage from "./pages/CreateCoursePage";
 import HomePage from "./pages/HomePage";
 import { applySeasonalTheme, getSeasonalTheme } from "./utils/seasonalTheme";
 
-type PageId = "home" | "course" | "create-course" | "admin" | "auth";
+type PageId =
+  | "home"
+  | "course"
+  | "create-course"
+  | "admin"
+  | "auth"
+  | "community"
+  | "community-post";
 
 interface NavState {
   page: PageId;
@@ -22,6 +31,11 @@ function parsePathToState(): NavState {
     const id = path.split("/course/")[1];
     return { page: "course", params: { id: id ?? "" } };
   }
+  if (path.startsWith("/community/post/")) {
+    const id = path.split("/community/post/")[1];
+    return { page: "community-post", params: { id: id ?? "0" } };
+  }
+  if (path === "/community") return { page: "community", params: {} };
   if (path === "/create-course") return { page: "create-course", params: {} };
   if (path === "/admin") return { page: "admin", params: {} };
   if (path === "/login" || path === "/auth")
@@ -45,6 +59,9 @@ export default function App() {
     let path = "/";
     if (navState.page === "course")
       path = `/course/${navState.params.id ?? ""}`;
+    else if (navState.page === "community-post")
+      path = `/community/post/${navState.params.id ?? "0"}`;
+    else if (navState.page === "community") path = "/community";
     else if (navState.page === "create-course") path = "/create-course";
     else if (navState.page === "admin") path = "/admin";
     else if (navState.page === "auth") path = "/login";
@@ -108,6 +125,23 @@ export default function App() {
         );
       case "auth":
         return <AuthPage theme={theme} onNavigate={navigate} />;
+      case "community":
+        return (
+          <CommunityPage
+            theme={theme}
+            onNavigate={navigate}
+            isLoggedIn={isLoggedIn}
+          />
+        );
+      case "community-post":
+        return (
+          <CommunityPostPage
+            postId={navState.params.id ?? "0"}
+            theme={theme}
+            onNavigate={navigate}
+            isLoggedIn={isLoggedIn}
+          />
+        );
       default:
         return (
           <HomePage

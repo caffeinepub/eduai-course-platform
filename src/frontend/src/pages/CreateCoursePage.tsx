@@ -61,59 +61,20 @@ interface LessonDraft {
   textContent: string;
 }
 
-function generateQuizQuestions(title: string): QuizQuestion[] {
-  return [
-    {
-      question: `What is the main focus of "${title}"?`,
-      options: [
-        `Understanding ${title} fundamentals`,
-        "Historical overview only",
-        "Unrelated advanced topics",
-        "Theoretical mathematics",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `Which approach is recommended when learning ${title}?`,
-      options: [
-        "Practice through real projects",
-        "Only read books",
-        "Memorize all definitions",
-        "Skip the basics",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `What skill does ${title} primarily develop?`,
-      options: [
-        "Critical thinking and problem solving",
-        "Rote memorization",
-        "Physical fitness",
-        "Artistic painting",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `How does ${title} relate to real-world applications?`,
-      options: [
-        "Directly applicable in industry",
-        "Only useful in academia",
-        "No practical applications",
-        "Only relevant historically",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `What is the best way to track progress in ${title}?`,
-      options: [
-        "Regular practice and self-assessment",
-        "Ignoring mistakes",
-        "Avoiding challenges",
-        "Only reading summaries",
-      ],
-      correctIndex: BigInt(0),
-    },
-  ];
+interface QuizDraft {
+  id: number;
+  question: string;
+  options: [string, string, string, string];
+  correctIndex: number;
+}
+
+function emptyQuestion(id: number): QuizDraft {
+  return {
+    id,
+    question: "",
+    options: ["", "", "", ""],
+    correctIndex: 0,
+  };
 }
 
 function isOver18(dob: bigint): boolean {
@@ -141,12 +102,16 @@ export default function CreateCoursePage({
     { id: 2, title: "", type: LessonType.video, videoUrl: "", textContent: "" },
     { id: 3, title: "", type: LessonType.text, videoUrl: "", textContent: "" },
   ]);
+  const [quizDrafts, setQuizDrafts] = useState<QuizDraft[]>([
+    emptyQuestion(1),
+    emptyQuestion(2),
+    emptyQuestion(3),
+  ]);
 
   const { data: backendCategories } = useAllCategories();
   const { data: profile } = useCallerProfile();
   const createCourse = useCreateCourse();
 
-  // Use backend categories if available and non-empty, otherwise fall back to defaults
   const categories =
     backendCategories && backendCategories.length > 0
       ? backendCategories
@@ -192,6 +157,7 @@ export default function CreateCoursePage({
     );
   }
 
+  // Lesson helpers
   const addLesson = () =>
     setLessons((prev) => [
       ...prev,
@@ -203,13 +169,30 @@ export default function CreateCoursePage({
         textContent: "",
       },
     ]);
-
   const removeLesson = (i: number) =>
     setLessons((prev) => prev.filter((_, idx) => idx !== i));
-
   const updateLesson = (i: number, patch: Partial<LessonDraft>) =>
     setLessons((prev) =>
       prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)),
+    );
+
+  // Quiz helpers
+  const addQuestion = () =>
+    setQuizDrafts((prev) => [...prev, emptyQuestion(Date.now())]);
+  const removeQuestion = (i: number) =>
+    setQuizDrafts((prev) => prev.filter((_, idx) => idx !== i));
+  const updateQuestion = (i: number, patch: Partial<QuizDraft>) =>
+    setQuizDrafts((prev) =>
+      prev.map((q, idx) => (idx === i ? { ...q, ...patch } : q)),
+    );
+  const updateOption = (qi: number, oi: number, value: string) =>
+    setQuizDrafts((prev) =>
+      prev.map((q, idx) => {
+        if (idx !== qi) return q;
+        const opts = [...q.options] as [string, string, string, string];
+        opts[oi] = value;
+        return { ...q, options: opts };
+      }),
     );
 
   const handleSubmit = async () => {
@@ -224,7 +207,11 @@ export default function CreateCoursePage({
       videoUrl: l.videoUrl,
       courseId: BigInt(0),
     }));
-    const quizQuestions = generateQuizQuestions(title);
+    const quizQuestions: QuizQuestion[] = quizDrafts.map((q) => ({
+      question: q.question,
+      options: q.options,
+      correctIndex: BigInt(q.correctIndex),
+    }));
     try {
       const courseId = await createCourse.mutateAsync({
         title,
@@ -240,7 +227,7 @@ export default function CreateCoursePage({
     }
   };
 
-  const steps = ["Course Info", "Add Lessons", "Review & Publish"];
+  const steps = ["Course Info", "Add Lessons", "Add Quiz", "Review & Publish"];
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
@@ -263,7 +250,7 @@ export default function CreateCoursePage({
       </p>
 
       {/* Step indicator */}
-      <div className="flex items-center mb-10">
+      <div className="flex items-center mb-10 flex-wrap gap-y-2">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center">
             <div
@@ -292,7 +279,7 @@ export default function CreateCoursePage({
             </span>
             {i < steps.length - 1 && (
               <div
-                className={`h-px flex-1 mx-4 min-w-[40px] ${
+                className={`h-px flex-1 mx-4 min-w-[24px] ${
                   i + 1 < step ? "" : "bg-border"
                 }`}
                 style={i + 1 < step ? { background: theme.primaryColor } : {}}
@@ -302,7 +289,7 @@ export default function CreateCoursePage({
         ))}
       </div>
 
-      {/* Step 1 */}
+      {/* Step 1 — Course Info */}
       {step === 1 && (
         <div className="space-y-6">
           <div className="p-6 rounded-2xl bg-card border border-border/50 space-y-5">
@@ -362,7 +349,6 @@ export default function CreateCoursePage({
               </Select>
             </div>
           </div>
-
           <Button
             data-ocid="create.step1_next_button"
             onClick={() => {
@@ -380,13 +366,12 @@ export default function CreateCoursePage({
         </div>
       )}
 
-      {/* Step 2 */}
+      {/* Step 2 — Lessons */}
       {step === 2 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground mb-2">
             Add at least 3 lessons to your course.
           </p>
-
           {lessons.map((lesson, i) => (
             <div
               key={lesson.id}
@@ -473,7 +458,6 @@ export default function CreateCoursePage({
               )}
             </div>
           ))}
-
           <Button
             data-ocid="create.step2_add_lesson_button"
             variant="outline"
@@ -482,7 +466,6 @@ export default function CreateCoursePage({
           >
             <Plus className="w-4 h-4 mr-2" /> Add Lesson
           </Button>
-
           <div className="flex gap-3">
             <Button
               variant="outline"
@@ -506,14 +489,135 @@ export default function CreateCoursePage({
               className="flex-1 font-semibold"
               style={{ background: theme.primaryColor }}
             >
+              Continue to Quiz <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 — Quiz Builder */}
+      {step === 3 && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground mb-2">
+            Add at least 3 quiz questions. Mark the correct answer for each.
+          </p>
+          {quizDrafts.map((q, qi) => (
+            <div
+              key={q.id}
+              className="p-5 rounded-2xl bg-card border border-border/50 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-foreground text-sm">
+                  Question {qi + 1}
+                </span>
+                {quizDrafts.length > 3 && (
+                  <button
+                    type="button"
+                    data-ocid={`create.quiz.delete_button.${qi + 1}`}
+                    onClick={() => removeQuestion(qi)}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Question *
+                </Label>
+                <Input
+                  data-ocid={`create.quiz.question_input.${qi + 1}`}
+                  value={q.question}
+                  onChange={(e) =>
+                    updateQuestion(qi, { question: e.target.value })
+                  }
+                  placeholder="e.g. What is a variable?"
+                  className="mt-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Answer Options * — click the circle to mark the correct one
+                </Label>
+                {q.options.map((opt, oi) => (
+                  <div
+                    key={["A", "B", "C", "D"][oi]}
+                    className="flex items-center gap-2"
+                  >
+                    <button
+                      type="button"
+                      data-ocid={`create.quiz.correct_radio.${qi + 1}`}
+                      onClick={() => updateQuestion(qi, { correctIndex: oi })}
+                      className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all ${
+                        q.correctIndex === oi
+                          ? "border-transparent"
+                          : "border-border"
+                      }`}
+                      style={
+                        q.correctIndex === oi
+                          ? {
+                              background: theme.primaryColor,
+                              borderColor: theme.primaryColor,
+                            }
+                          : {}
+                      }
+                      aria-label={`Mark option ${oi + 1} as correct`}
+                    />
+                    <Input
+                      value={opt}
+                      onChange={(e) => updateOption(qi, oi, e.target.value)}
+                      placeholder={`Option ${oi + 1}`}
+                      className="flex-1"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <Button
+            data-ocid="create.quiz.add_question_button"
+            variant="outline"
+            onClick={addQuestion}
+            className="w-full border-dashed"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Question
+          </Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setStep(2)}
+              className="flex-1"
+            >
+              Back
+            </Button>
+            <Button
+              onClick={() => {
+                if (quizDrafts.length < 3) {
+                  toast.error("Add at least 3 quiz questions");
+                  return;
+                }
+                if (
+                  quizDrafts.some(
+                    (q) =>
+                      !q.question.trim() || q.options.some((o) => !o.trim()),
+                  )
+                ) {
+                  toast.error("Fill in all questions and options");
+                  return;
+                }
+                setStep(4);
+              }}
+              className="flex-1 font-semibold"
+              style={{ background: theme.primaryColor }}
+            >
               Review Course <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* Step 3 */}
-      {step === 3 && (
+      {/* Step 4 — Review & Publish */}
+      {step === 4 && (
         <div className="space-y-6">
           <div className="p-6 rounded-2xl bg-card border border-border/50">
             <h3 className="font-display text-lg font-bold text-foreground mb-4">
@@ -562,19 +666,18 @@ export default function CreateCoursePage({
               </div>
               <div>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  AI Quiz
+                  Quiz
                 </span>
                 <p className="text-sm text-foreground mt-0.5">
-                  5 questions auto-generated
+                  {quizDrafts.length} questions (manually created)
                 </p>
               </div>
             </div>
           </div>
-
           <div className="flex gap-3">
             <Button
               variant="outline"
-              onClick={() => setStep(2)}
+              onClick={() => setStep(3)}
               className="flex-1"
             >
               Back

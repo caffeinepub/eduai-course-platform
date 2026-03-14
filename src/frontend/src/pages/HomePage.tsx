@@ -5,19 +5,15 @@ import {
   ArrowRight,
   BookOpen,
   GraduationCap,
-  HelpCircle,
-  Loader2,
   PlusCircle,
   Search,
-  Send,
   Sparkles,
   Users,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Category, Course } from "../backend";
-import { useActor } from "../hooks/useActor";
 import {
   useAllCategories,
   useAllCourses,
@@ -117,292 +113,6 @@ function CourseCard({
   );
 }
 
-type ChatMessage =
-  | { role: "user"; text: string }
-  | { role: "ai"; text: string }
-  | { role: "error"; text: string };
-
-function TypingIndicator({ color }: { color: string }) {
-  return (
-    <div className="flex items-end gap-2 mb-4">
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{ background: `${color}22` }}
-      >
-        <Sparkles className="w-3.5 h-3.5" style={{ color }} />
-      </div>
-      <div
-        className="px-4 py-3 rounded-2xl rounded-bl-sm"
-        style={{ background: `${color}15`, border: `1px solid ${color}25` }}
-      >
-        <div className="flex gap-1 items-center h-4">
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: color }}
-              animate={{ y: [0, -5, 0] }}
-              transition={{
-                duration: 0.7,
-                repeat: Number.POSITIVE_INFINITY,
-                delay: i * 0.15,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AskDoubtSection({ theme }: { theme: ThemeConfig }) {
-  const { actor } = useActor();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isAsking, setIsAsking] = useState(false);
-  const threadRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    if (threadRef.current) {
-      threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }
-  };
-
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || isAsking) return;
-
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text }]);
-    setIsAsking(true);
-    setTimeout(scrollToBottom, 50);
-
-    try {
-      if (!actor) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "error",
-            text: "Unable to connect to the AI service. Please try again later.",
-          },
-        ]);
-        setTimeout(scrollToBottom, 50);
-        return;
-      }
-      const result = await actor.askDoubt(0n, text);
-      setMessages((prev) => [...prev, { role: "ai", text: result }]);
-      setTimeout(scrollToBottom, 50);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "error",
-          text: "Something went wrong. Please try again or visit a course page for doubt solving.",
-        },
-      ]);
-    } finally {
-      setIsAsking(false);
-    }
-  };
-
-  return (
-    <section className="max-w-3xl mx-auto px-4 py-12">
-      <div
-        className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm shadow-lg overflow-hidden flex flex-col"
-        style={{ minHeight: 480 }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center gap-3 px-6 py-4 border-b border-border/50"
-          style={{ background: `${theme.primaryColor}0d` }}
-        >
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: `${theme.primaryColor}22` }}
-          >
-            <HelpCircle
-              className="w-5 h-5"
-              style={{ color: theme.primaryColor }}
-            />
-          </div>
-          <div>
-            <h2 className="font-display text-lg font-bold text-foreground leading-tight">
-              Ask a Doubt
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              AI-powered instant answers — maths, science, coding &amp; more
-            </p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full animate-pulse"
-              style={{ background: theme.accentColor }}
-            />
-            <span className="text-xs text-muted-foreground">AI Online</span>
-          </div>
-        </div>
-
-        {/* Message thread */}
-        <div
-          ref={threadRef}
-          className="flex-1 overflow-y-auto px-6 py-5 space-y-1"
-          style={{ maxHeight: 420 }}
-        >
-          {/* Empty state */}
-          {messages.length === 0 && !isAsking && (
-            <div className="h-full flex flex-col items-center justify-center py-10 text-center">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: `${theme.primaryColor}18` }}
-              >
-                <Sparkles
-                  className="w-7 h-7"
-                  style={{ color: theme.primaryColor }}
-                />
-              </div>
-              <p className="font-display font-semibold text-foreground text-base mb-1">
-                Hi! I&apos;m your AI tutor 👋
-              </p>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                Ask me anything — maths, science, coding, history, languages…
-                I&apos;m here to help!
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2 justify-center">
-                {[
-                  "What is Newton's 3rd law?",
-                  "Explain gradient descent",
-                  "How does DNA replication work?",
-                ].map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => setInput(q)}
-                    className="px-3 py-1.5 rounded-full text-xs border border-border/70 text-muted-foreground hover:text-foreground hover:border-border transition-colors bg-background/50"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Messages */}
-          <AnimatePresence initial={false}>
-            {messages.map((msg, i) => (
-              <motion.div
-                // biome-ignore lint/suspicious/noArrayIndexKey: stable chat order
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "items-end gap-2"
-                } mb-4`}
-                data-ocid={
-                  msg.role === "ai"
-                    ? "home.ask_doubt.success_state"
-                    : msg.role === "error"
-                      ? "home.ask_doubt.error_state"
-                      : undefined
-                }
-              >
-                {/* AI / Error avatar */}
-                {msg.role !== "user" && (
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background:
-                        msg.role === "error"
-                          ? "hsl(var(--destructive)/0.15)"
-                          : `${theme.accentColor}22`,
-                    }}
-                  >
-                    {msg.role === "error" ? (
-                      <HelpCircle className="w-3.5 h-3.5 text-destructive" />
-                    ) : (
-                      <Sparkles
-                        className="w-3.5 h-3.5"
-                        style={{ color: theme.accentColor }}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {/* Bubble */}
-                <div
-                  className={`max-w-[80%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "rounded-2xl rounded-br-sm text-white"
-                      : msg.role === "error"
-                        ? "rounded-2xl rounded-bl-sm text-destructive border border-destructive/25 bg-destructive/8"
-                        : "rounded-2xl rounded-bl-sm text-foreground border"
-                  }`}
-                  style={
-                    msg.role === "user"
-                      ? { background: theme.primaryColor }
-                      : msg.role === "ai"
-                        ? {
-                            background: `${theme.primaryColor}0d`,
-                            borderColor: `${theme.primaryColor}28`,
-                          }
-                        : undefined
-                  }
-                >
-                  {msg.text}
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Typing indicator */}
-          {isAsking && (
-            <div data-ocid="home.ask_doubt.loading_state">
-              <TypingIndicator color={theme.accentColor} />
-            </div>
-          )}
-        </div>
-
-        {/* Input bar */}
-        <div className="px-4 py-3 border-t border-border/50 bg-background/50 flex items-center gap-2">
-          <Input
-            data-ocid="home.ask_doubt.textarea"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Type your question and press Enter…"
-            disabled={isAsking}
-            className="flex-1 bg-background border-border/70 text-foreground placeholder:text-muted-foreground/50 text-sm h-10"
-          />
-          <Button
-            data-ocid="home.ask_doubt.submit_button"
-            onClick={handleSend}
-            disabled={isAsking || !input.trim()}
-            size="icon"
-            className="h-10 w-10 flex-shrink-0 rounded-xl"
-            style={{
-              background:
-                input.trim() && !isAsking ? theme.primaryColor : undefined,
-              color: input.trim() && !isAsking ? "#fff" : undefined,
-            }}
-          >
-            {isAsking ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function HomePage({
   theme,
   onNavigate,
@@ -495,8 +205,8 @@ export default function HomePage({
             Pay <span style={{ color: theme.accentColor }}>Nothing</span>
           </h1>
           <p className="text-xl text-white/70 mb-10 max-w-2xl mx-auto">
-            Thousands of expert-crafted courses with AI quizzes, instant doubt
-            solving, and structured learning paths — completely free.
+            Thousands of expert-crafted courses with AI quizzes and structured
+            learning paths — completely free.
           </p>
 
           {/* Search */}
@@ -563,7 +273,6 @@ export default function HomePage({
               background: `linear-gradient(120deg, ${theme.heroBgFrom} 0%, ${theme.heroBgTo} 100%)`,
             }}
           >
-            {/* subtle noise texture layer */}
             <div
               className="absolute inset-0 opacity-10"
               style={{
@@ -619,9 +328,6 @@ export default function HomePage({
           </motion.section>
         )}
       </AnimatePresence>
-
-      {/* Ask a Doubt Section */}
-      <AskDoubtSection theme={theme} />
 
       {/* Create Your Own Course Section */}
       <section

@@ -68,6 +68,18 @@ export default function Navbar({
             >
               Browse Courses
             </button>
+            <button
+              type="button"
+              data-ocid="nav.community_link"
+              onClick={() => onNavigate("community")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === "community" || currentPage === "community-post"
+                  ? "text-foreground bg-white/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              Community
+            </button>
             {isAdmin && (
               <button
                 type="button"

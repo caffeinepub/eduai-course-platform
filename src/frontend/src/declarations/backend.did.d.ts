@@ -16,6 +16,22 @@ export interface Category {
   'createdAt' : bigint,
   'createdBy' : Principal,
 }
+export interface CommunityComment {
+  'id' : bigint,
+  'body' : string,
+  'createdAt' : Time,
+  'authorPrincipal' : Principal,
+  'postId' : bigint,
+}
+export interface CommunityPostView {
+  'id' : bigint,
+  'title' : string,
+  'likeCount' : bigint,
+  'body' : string,
+  'createdAt' : Time,
+  'likes' : Array<Principal>,
+  'authorPrincipal' : Principal,
+}
 export interface Course {
   'id' : bigint,
   'categoryId' : bigint,
@@ -59,6 +75,7 @@ export interface QuizQuestion {
   'correctIndex' : bigint,
   'options' : Array<string>,
 }
+export type Time = bigint;
 export interface User {
   'username' : string,
   'dateOfBirth' : bigint,
@@ -108,25 +125,32 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'askDoubt' : ActorMethod<[bigint, string], string>,
+  'askGeneralDoubt' : ActorMethod<[string], string>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'createCategory' : ActorMethod<[string], undefined>,
+  'createComment' : ActorMethod<[bigint, string], bigint>,
   'createCourse' : ActorMethod<
     [string, string, bigint, [] | [ExternalBlob]],
     bigint
   >,
   'createLesson' : ActorMethod<[LessonUpdate], bigint>,
+  'createPost' : ActorMethod<[string, string], bigint>,
   'createQuiz' : ActorMethod<[bigint, Array<QuizQuestion>], undefined>,
   'createUser' : ActorMethod<[UserUpdate], undefined>,
   'deleteCategory' : ActorMethod<[bigint], undefined>,
+  'deleteComment' : ActorMethod<[bigint], undefined>,
   'deleteCourse' : ActorMethod<[bigint], undefined>,
   'deleteLesson' : ActorMethod<[bigint], undefined>,
+  'deletePost' : ActorMethod<[bigint], undefined>,
   'deleteUser' : ActorMethod<[Principal], undefined>,
   'getAllCategories' : ActorMethod<[], Array<Category>>,
   'getAllCourses' : ActorMethod<[], Array<Course>>,
+  'getAllPosts' : ActorMethod<[], Array<CommunityPostView>>,
   'getAllUsers' : ActorMethod<[], Array<User>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCategory' : ActorMethod<[bigint], Category>,
+  'getCommentsForPost' : ActorMethod<[bigint], Array<CommunityComment>>,
   'getCourse' : ActorMethod<[bigint], Course>,
   'getDoubtHistory' : ActorMethod<
     [bigint],
@@ -140,12 +164,16 @@ export interface _SERVICE {
     ]
   >,
   'getLesson' : ActorMethod<[bigint], Lesson>,
+  'getPost' : ActorMethod<[bigint], [] | [CommunityPostView]>,
   'getQuiz' : ActorMethod<[bigint], [] | [Quiz]>,
   'getUser' : ActorMethod<[Principal], User>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'hasUserLiked' : ActorMethod<[bigint, Principal], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'likePost' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'searchCoursesByTitle' : ActorMethod<[string], Array<Course>>,
+  'unlikePost' : ActorMethod<[bigint], undefined>,
   'updateCategory' : ActorMethod<[bigint, string], undefined>,
   'updateCourse' : ActorMethod<[bigint, CourseUpdate], undefined>,
   'updateLesson' : ActorMethod<[bigint, LessonUpdate], undefined>,

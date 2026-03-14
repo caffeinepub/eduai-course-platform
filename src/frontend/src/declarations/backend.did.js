@@ -64,6 +64,16 @@ export const Course = IDL.Record({
   'createdAt' : IDL.Int,
   'description' : IDL.Text,
 });
+export const Time = IDL.Int;
+export const CommunityPostView = IDL.Record({
+  'id' : IDL.Nat,
+  'title' : IDL.Text,
+  'likeCount' : IDL.Nat,
+  'body' : IDL.Text,
+  'createdAt' : Time,
+  'likes' : IDL.Vec(IDL.Principal),
+  'authorPrincipal' : IDL.Principal,
+});
 export const User = IDL.Record({
   'username' : IDL.Text,
   'dateOfBirth' : IDL.Int,
@@ -75,6 +85,13 @@ export const UserProfile = IDL.Record({
   'dateOfBirth' : IDL.Int,
   'createdAt' : IDL.Int,
   'email' : IDL.Text,
+});
+export const CommunityComment = IDL.Record({
+  'id' : IDL.Nat,
+  'body' : IDL.Text,
+  'createdAt' : Time,
+  'authorPrincipal' : IDL.Principal,
+  'postId' : IDL.Nat,
 });
 export const Lesson = IDL.Record({
   'id' : IDL.Nat,
@@ -125,26 +142,37 @@ export const idlService = IDL.Service({
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'askDoubt' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Text], []),
+  'askGeneralDoubt' : IDL.Func([IDL.Text], [IDL.Text], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createCategory' : IDL.Func([IDL.Text], [], []),
+  'createComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
   'createCourse' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat, IDL.Opt(ExternalBlob)],
       [IDL.Nat],
       [],
     ),
   'createLesson' : IDL.Func([LessonUpdate], [IDL.Nat], []),
+  'createPost' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
   'createQuiz' : IDL.Func([IDL.Nat, IDL.Vec(QuizQuestion)], [], []),
   'createUser' : IDL.Func([UserUpdate], [], []),
   'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+  'deleteComment' : IDL.Func([IDL.Nat], [], []),
   'deleteCourse' : IDL.Func([IDL.Nat], [], []),
   'deleteLesson' : IDL.Func([IDL.Nat], [], []),
+  'deletePost' : IDL.Func([IDL.Nat], [], []),
   'deleteUser' : IDL.Func([IDL.Principal], [], []),
   'getAllCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
   'getAllCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
+  'getAllPosts' : IDL.Func([], [IDL.Vec(CommunityPostView)], ['query']),
   'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCategory' : IDL.Func([IDL.Nat], [Category], ['query']),
+  'getCommentsForPost' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Vec(CommunityComment)],
+      ['query'],
+    ),
   'getCourse' : IDL.Func([IDL.Nat], [Course], ['query']),
   'getDoubtHistory' : IDL.Func(
       [IDL.Nat],
@@ -161,6 +189,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getLesson' : IDL.Func([IDL.Nat], [Lesson], ['query']),
+  'getPost' : IDL.Func([IDL.Nat], [IDL.Opt(CommunityPostView)], ['query']),
   'getQuiz' : IDL.Func([IDL.Nat], [IDL.Opt(Quiz)], ['query']),
   'getUser' : IDL.Func([IDL.Principal], [User], ['query']),
   'getUserProfile' : IDL.Func(
@@ -168,9 +197,12 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'hasUserLiked' : IDL.Func([IDL.Nat, IDL.Principal], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'likePost' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'searchCoursesByTitle' : IDL.Func([IDL.Text], [IDL.Vec(Course)], ['query']),
+  'unlikePost' : IDL.Func([IDL.Nat], [], []),
   'updateCategory' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'updateCourse' : IDL.Func([IDL.Nat, CourseUpdate], [], []),
   'updateLesson' : IDL.Func([IDL.Nat, LessonUpdate], [], []),
@@ -236,6 +268,16 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'description' : IDL.Text,
   });
+  const Time = IDL.Int;
+  const CommunityPostView = IDL.Record({
+    'id' : IDL.Nat,
+    'title' : IDL.Text,
+    'likeCount' : IDL.Nat,
+    'body' : IDL.Text,
+    'createdAt' : Time,
+    'likes' : IDL.Vec(IDL.Principal),
+    'authorPrincipal' : IDL.Principal,
+  });
   const User = IDL.Record({
     'username' : IDL.Text,
     'dateOfBirth' : IDL.Int,
@@ -247,6 +289,13 @@ export const idlFactory = ({ IDL }) => {
     'dateOfBirth' : IDL.Int,
     'createdAt' : IDL.Int,
     'email' : IDL.Text,
+  });
+  const CommunityComment = IDL.Record({
+    'id' : IDL.Nat,
+    'body' : IDL.Text,
+    'createdAt' : Time,
+    'authorPrincipal' : IDL.Principal,
+    'postId' : IDL.Nat,
   });
   const Lesson = IDL.Record({
     'id' : IDL.Nat,
@@ -297,26 +346,37 @@ export const idlFactory = ({ IDL }) => {
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'askDoubt' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Text], []),
+    'askGeneralDoubt' : IDL.Func([IDL.Text], [IDL.Text], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createCategory' : IDL.Func([IDL.Text], [], []),
+    'createComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
     'createCourse' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Nat, IDL.Opt(ExternalBlob)],
         [IDL.Nat],
         [],
       ),
     'createLesson' : IDL.Func([LessonUpdate], [IDL.Nat], []),
+    'createPost' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
     'createQuiz' : IDL.Func([IDL.Nat, IDL.Vec(QuizQuestion)], [], []),
     'createUser' : IDL.Func([UserUpdate], [], []),
     'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+    'deleteComment' : IDL.Func([IDL.Nat], [], []),
     'deleteCourse' : IDL.Func([IDL.Nat], [], []),
     'deleteLesson' : IDL.Func([IDL.Nat], [], []),
+    'deletePost' : IDL.Func([IDL.Nat], [], []),
     'deleteUser' : IDL.Func([IDL.Principal], [], []),
     'getAllCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
     'getAllCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
+    'getAllPosts' : IDL.Func([], [IDL.Vec(CommunityPostView)], ['query']),
     'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCategory' : IDL.Func([IDL.Nat], [Category], ['query']),
+    'getCommentsForPost' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Vec(CommunityComment)],
+        ['query'],
+      ),
     'getCourse' : IDL.Func([IDL.Nat], [Course], ['query']),
     'getDoubtHistory' : IDL.Func(
         [IDL.Nat],
@@ -333,6 +393,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getLesson' : IDL.Func([IDL.Nat], [Lesson], ['query']),
+    'getPost' : IDL.Func([IDL.Nat], [IDL.Opt(CommunityPostView)], ['query']),
     'getQuiz' : IDL.Func([IDL.Nat], [IDL.Opt(Quiz)], ['query']),
     'getUser' : IDL.Func([IDL.Principal], [User], ['query']),
     'getUserProfile' : IDL.Func(
@@ -340,9 +401,12 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'hasUserLiked' : IDL.Func([IDL.Nat, IDL.Principal], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'likePost' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'searchCoursesByTitle' : IDL.Func([IDL.Text], [IDL.Vec(Course)], ['query']),
+    'unlikePost' : IDL.Func([IDL.Nat], [], []),
     'updateCategory' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'updateCourse' : IDL.Func([IDL.Nat, CourseUpdate], [], []),
     'updateLesson' : IDL.Func([IDL.Nat, LessonUpdate], [], []),

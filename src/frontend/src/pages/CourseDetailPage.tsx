@@ -2,21 +2,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  AlertCircle,
   ArrowLeft,
   BookOpen,
+  ExternalLink,
+  FileText,
   HelpCircle,
-  Loader2,
-  MessageCircle,
-  Send,
+  Mail,
+  RefreshCw,
   Video,
 } from "lucide-react";
 import { useState } from "react";
-import type { QuizQuestion } from "../backend";
-import { useActor } from "../hooks/useActor";
-import { useAllCategories, useCourse, useQuiz } from "../hooks/useQueries";
+import type { Lesson, QuizQuestion } from "../backend";
+import { LessonType } from "../backend";
+import {
+  useAllCategories,
+  useCourse,
+  useLessonsForCourse,
+  useQuiz,
+} from "../hooks/useQueries";
 import type { ThemeConfig } from "../utils/seasonalTheme";
+
+const ADMIN_EMAIL = "admin@eduai.com"; // Replace with real admin email
 
 interface CourseDetailPageProps {
   courseId: string;
@@ -24,71 +32,218 @@ interface CourseDetailPageProps {
   onNavigate: (page: string, params?: Record<string, string>) => void;
 }
 
-function generateFallbackQuiz(courseTitle: string): QuizQuestion[] {
-  return [
-    {
-      question: `What is the main topic of "${courseTitle}"?`,
-      options: [
-        "Fundamentals and core concepts",
-        "Advanced techniques only",
-        "Historical context",
-        "Unrelated subject matter",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `Which skill level is "${courseTitle}" most suitable for?`,
-      options: [
-        "Beginners to intermediates",
-        "PhD researchers only",
-        "Industry veterans only",
-        "None of the above",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `What is the best way to learn from "${courseTitle}"?`,
-      options: [
-        "Practice exercises and application",
-        "Only reading theory",
-        "Memorizing definitions",
-        "Skipping examples",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `Which resource complements "${courseTitle}" best?`,
-      options: [
-        "Hands-on projects",
-        "Watching unrelated videos",
-        "Avoiding practice",
-        "Only flashcards",
-      ],
-      correctIndex: BigInt(0),
-    },
-    {
-      question: `After completing "${courseTitle}", learners should be able to?`,
-      options: [
-        "Apply key concepts to real problems",
-        "Teach others immediately",
-        "Only pass exams",
-        "None of the above",
-      ],
-      correctIndex: BigInt(0),
-    },
+function getYouTubeEmbedUrl(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]+)/,
   ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return null;
+}
+
+function LessonCard({
+  lesson,
+  index,
+  theme,
+}: { lesson: Lesson; index: number; theme: ThemeConfig }) {
+  const [expanded, setExpanded] = useState(false);
+  const embedUrl = lesson.videoUrl ? getYouTubeEmbedUrl(lesson.videoUrl) : null;
+
+  return (
+    <div
+      data-ocid={`course.lesson.item.${index}`}
+      className="rounded-xl border border-border/50 overflow-hidden bg-card"
+    >
+      {/* Lesson header */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-4 p-4 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white text-sm font-bold"
+          style={{ background: theme.primaryColor }}
+        >
+          {index}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-foreground truncate">
+            {lesson.title}
+          </p>
+          <p className="text-xs text-muted-foreground capitalize mt-0.5">
+            {lesson.lessonType}
+          </p>
+        </div>
+        <div className="shrink-0">
+          {lesson.lessonType === LessonType.video || lesson.videoUrl ? (
+            <Video className="w-4 h-4 text-muted-foreground" />
+          ) : lesson.lessonType === LessonType.pdf ? (
+            <FileText className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
+          )}
+        </div>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="border-t border-border/50">
+          {/* Video embed */}
+          {lesson.videoUrl && embedUrl && (
+            <div
+              className="relative w-full"
+              style={{ paddingBottom: "56.25%" }}
+            >
+              <iframe
+                src={embedUrl}
+                title={lesson.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          )}
+
+          {/* Non-YouTube video URL */}
+          {lesson.videoUrl && !embedUrl && (
+            <div className="p-4">
+              <a
+                href={lesson.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium hover:underline"
+                style={{ color: theme.primaryColor }}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Watch Video
+              </a>
+            </div>
+          )}
+
+          {/* PDF lesson */}
+          {lesson.lessonType === LessonType.pdf && lesson.content && (
+            <div className="p-4 flex items-center gap-3">
+              <FileText
+                className="w-8 h-8"
+                style={{ color: theme.primaryColor }}
+              />
+              <div>
+                <p className="font-medium text-sm text-foreground">
+                  PDF Document
+                </p>
+                <a
+                  href={lesson.content.getDirectURL()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs hover:underline"
+                  style={{ color: theme.primaryColor }}
+                >
+                  Open PDF
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Text lesson */}
+          {lesson.lessonType === LessonType.text && (
+            <div className="p-4">
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {lesson.content
+                  ? "Text content available — download to view."
+                  : "No text content attached to this lesson."}
+              </p>
+            </div>
+          )}
+
+          {/* Image lesson */}
+          {lesson.lessonType === LessonType.image && lesson.content && (
+            <div className="p-4">
+              <img
+                src={lesson.content.getDirectURL()}
+                alt={lesson.title}
+                className="rounded-lg max-w-full"
+              />
+            </div>
+          )}
+
+          {/* No content fallback */}
+          {!lesson.videoUrl &&
+            !lesson.content &&
+            lesson.lessonType !== LessonType.text && (
+              <div className="p-4 text-sm text-muted-foreground italic">
+                No content available for this lesson yet.
+              </div>
+            )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LessonsSection({
+  courseId,
+  theme,
+}: { courseId: bigint; theme: ThemeConfig }) {
+  const { data: lessons, isLoading } = useLessonsForCourse(courseId);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  const sorted = [...(lessons ?? [])].sort(
+    (a, b) => Number(a.order) - Number(b.order),
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div
+        data-ocid="course.lessons.empty_state"
+        className="text-center py-16 text-muted-foreground"
+      >
+        <Video className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p className="font-medium text-foreground">No lessons yet</p>
+        <p className="text-sm mt-1">
+          The course creator hasn't added any lessons yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground mb-4">
+        {sorted.length} lesson{sorted.length !== 1 ? "s" : ""} — click a lesson
+        to expand
+      </p>
+      {sorted.map((lesson, i) => (
+        <LessonCard
+          key={lesson.id.toString()}
+          lesson={lesson}
+          index={i + 1}
+          theme={theme}
+        />
+      ))}
+    </div>
+  );
 }
 
 function QuizSection({
   courseId,
-  courseTitle,
   theme,
-}: { courseId: bigint; courseTitle: string; theme: ThemeConfig }) {
+}: { courseId: bigint; theme: ThemeConfig }) {
   const { data: quiz, isLoading } = useQuiz(courseId);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  const questions = quiz?.questions ?? generateFallbackQuiz(courseTitle);
+  const questions: QuizQuestion[] = quiz?.questions ?? [];
 
   const score = submitted
     ? questions.reduce((acc, q, i) => {
@@ -97,6 +252,21 @@ function QuizSection({
     : 0;
 
   if (isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
+
+  if (questions.length === 0) {
+    return (
+      <div
+        data-ocid="course.quiz.empty_state"
+        className="text-center py-16 text-muted-foreground"
+      >
+        <HelpCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p className="font-medium text-foreground">No quiz available yet</p>
+        <p className="text-sm mt-1">
+          The creator hasn't added a quiz for this course yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div data-ocid="course.quiz_section" className="space-y-6">
@@ -109,7 +279,7 @@ function QuizSection({
         </div>
         <div>
           <h3 className="font-display text-lg font-bold text-foreground">
-            AI Knowledge Quiz
+            Course Quiz
           </h3>
           <p className="text-sm text-muted-foreground">
             {questions.length} questions
@@ -122,21 +292,26 @@ function QuizSection({
           className="p-6 rounded-2xl text-center border"
           style={{
             borderColor:
-              score >= 3 ? "oklch(0.65 0.18 145)" : "oklch(0.6 0.22 25)",
+              score >= Math.ceil(questions.length / 2)
+                ? "oklch(0.65 0.18 145)"
+                : "oklch(0.6 0.22 25)",
           }}
         >
           <div
             className="text-5xl font-display font-bold mb-2"
             style={{
-              color: score >= 3 ? theme.primaryColor : "oklch(0.65 0.22 25)",
+              color:
+                score >= Math.ceil(questions.length / 2)
+                  ? theme.primaryColor
+                  : "oklch(0.65 0.22 25)",
             }}
           >
             {score}/{questions.length}
           </div>
           <p className="text-lg font-medium text-foreground">
-            {score >= 4
-              ? "Excellent! 🎉"
-              : score >= 3
+            {score === questions.length
+              ? "Perfect! 🎉"
+              : score >= Math.ceil(questions.length / 2)
                 ? "Good job! 👍"
                 : "Keep studying! 📚"}
           </p>
@@ -190,7 +365,7 @@ function QuizSection({
             </div>
           ))}
           <Button
-            data-ocid="course.quiz_submit_button"
+            data-ocid="course.quiz.submit_button"
             onClick={() => setSubmitted(true)}
             disabled={Object.keys(answers).length < questions.length}
             className="w-full h-12 font-semibold"
@@ -205,136 +380,37 @@ function QuizSection({
   );
 }
 
-function DoubtChat({
-  courseId,
-  theme,
-}: { courseId: bigint; theme: ThemeConfig }) {
-  const { actor } = useActor();
-  let msgId = 0;
-  const [messages, setMessages] = useState<
-    { role: "user" | "ai"; text: string; id: number }[]
-  >([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const sendDoubt = async () => {
-    if (!input.trim() || !actor) return;
-    const q = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: q, id: ++msgId }]);
-    setLoading(true);
-    try {
-      const answer = await actor.askDoubt(courseId, q);
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: answer, id: ++msgId },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          text: "Sorry, I couldn't process your question. Please try again.",
-          id: ++msgId,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function DoubtContact({ theme }: { theme: ThemeConfig }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: `${theme.accentColor}33` }}
-        >
-          <MessageCircle
-            className="w-5 h-5"
-            style={{ color: theme.accentColor }}
-          />
-        </div>
-        <div>
-          <h3 className="font-display text-lg font-bold text-foreground">
-            AI Doubt Solver
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Ask anything about this course
-          </p>
-        </div>
+    <div className="flex flex-col items-center text-center gap-5 py-10">
+      <div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center"
+        style={{ background: `${theme.primaryColor}18` }}
+      >
+        <Mail className="w-8 h-8" style={{ color: theme.primaryColor }} />
       </div>
-
-      <div className="min-h-[200px] max-h-[400px] overflow-y-auto space-y-3 scrollbar-thin">
-        {messages.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Ask a question to get AI-powered help</p>
-          </div>
-        )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
-            <div
-              className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${
-                msg.role === "user"
-                  ? "text-white"
-                  : "bg-muted/50 text-foreground"
-              }`}
-              style={
-                msg.role === "user" ? { background: theme.primaryColor } : {}
-              }
-            >
-              {msg.text}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-muted/50 px-4 py-3 rounded-2xl">
-              <Loader2
-                className="w-4 h-4 animate-spin"
-                style={{ color: theme.primaryColor }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <Textarea
-          data-ocid="course.doubt_input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void sendDoubt();
-            }
-          }}
-          placeholder="Ask your doubt here..."
-          className="min-h-[60px] resize-none"
-          rows={2}
-        />
-        <Button
-          data-ocid="course.doubt_send_button"
-          onClick={() => void sendDoubt()}
-          disabled={loading || !input.trim() || !actor}
-          className="h-auto px-4"
-          style={{ background: theme.primaryColor }}
-        >
-          <Send className="w-4 h-4" />
-        </Button>
-      </div>
-      {!actor && (
-        <p className="text-xs text-muted-foreground text-center">
-          Sign in to use AI Doubt Solver
+      <div>
+        <p className="font-display font-semibold text-foreground text-lg mb-2">
+          Have a doubt about this course?
         </p>
-      )}
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Email the admin with your question and get a personal explanation.
+        </p>
+      </div>
+      <a
+        href={`mailto:${ADMIN_EMAIL}?subject=Doubt%20about%20course`}
+        data-ocid="course.doubt_email_button"
+      >
+        <Button
+          size="lg"
+          className="gap-2 font-semibold rounded-xl"
+          style={{ background: theme.primaryColor, color: "#fff" }}
+        >
+          <Mail className="w-4 h-4" />
+          Email Admin
+        </Button>
+      </a>
+      <p className="text-xs text-muted-foreground">{ADMIN_EMAIL}</p>
     </div>
   );
 }
@@ -345,7 +421,7 @@ export default function CourseDetailPage({
   onNavigate,
 }: CourseDetailPageProps) {
   const id = BigInt(courseId);
-  const { data: course, isLoading } = useCourse(id);
+  const { data: course, isLoading, isError, refetch } = useCourse(id);
   const { data: categories } = useAllCategories();
 
   const category = categories?.find((c) => c.id === course?.categoryId);
@@ -357,6 +433,39 @@ export default function CourseDetailPage({
         <Skeleton className="h-64 w-full rounded-2xl mb-6" />
         <Skeleton className="h-8 w-64 mb-3" />
         <Skeleton className="h-24 w-full" />
+      </main>
+    );
+  }
+
+  if (isError) {
+    return (
+      <main
+        data-ocid="course.error_state"
+        className="max-w-5xl mx-auto px-4 py-20 text-center"
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-destructive/10 mb-6">
+          <AlertCircle className="w-8 h-8 text-destructive" />
+        </div>
+        <h2 className="font-display text-2xl font-bold text-foreground mb-2">
+          Failed to load course
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Something went wrong while fetching this course. Please try again.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            data-ocid="course.error_retry_button"
+            onClick={() => refetch()}
+            className="gap-2"
+            style={{ background: theme.primaryColor, color: "#fff" }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </Button>
+          <Button variant="outline" onClick={() => onNavigate("home")}>
+            Go Home
+          </Button>
+        </div>
       </main>
     );
   }
@@ -379,6 +488,7 @@ export default function CourseDetailPage({
       {/* Back */}
       <button
         type="button"
+        data-ocid="course.back_button"
         onClick={() => onNavigate("home")}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
@@ -414,18 +524,30 @@ export default function CourseDetailPage({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="lessons" className="space-y-6">
         <TabsList className="bg-muted/30 border border-border/50">
-          <TabsTrigger value="overview" data-ocid="course.lesson_tab.1">
+          <TabsTrigger value="lessons" data-ocid="course.lessons.tab">
+            <Video className="w-4 h-4 mr-2" /> Lessons
+          </TabsTrigger>
+          <TabsTrigger value="overview" data-ocid="course.overview.tab">
             <BookOpen className="w-4 h-4 mr-2" /> Overview
           </TabsTrigger>
-          <TabsTrigger value="quiz" data-ocid="course.lesson_tab.2">
+          <TabsTrigger value="quiz" data-ocid="course.quiz.tab">
             <HelpCircle className="w-4 h-4 mr-2" /> Quiz
           </TabsTrigger>
-          <TabsTrigger value="doubt" data-ocid="course.lesson_tab.3">
-            <MessageCircle className="w-4 h-4 mr-2" /> Doubt Solver
+          <TabsTrigger value="doubt" data-ocid="course.doubt.tab">
+            <Mail className="w-4 h-4 mr-2" /> Ask a Doubt
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="lessons">
+          <div className="p-6 rounded-2xl bg-card border border-border/50">
+            <h2 className="font-display text-xl font-bold text-foreground mb-6">
+              Course Lessons
+            </h2>
+            <LessonsSection courseId={id} theme={theme} />
+          </div>
+        </TabsContent>
 
         <TabsContent value="overview">
           <div className="p-6 rounded-2xl bg-card border border-border/50">
@@ -435,7 +557,6 @@ export default function CourseDetailPage({
             <p className="text-muted-foreground leading-relaxed mb-6">
               {course.description}
             </p>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 {
@@ -445,14 +566,10 @@ export default function CourseDetailPage({
                 },
                 {
                   icon: HelpCircle,
-                  label: "AI Quiz",
+                  label: "Quiz",
                   desc: "Test your knowledge",
                 },
-                {
-                  icon: MessageCircle,
-                  label: "AI Doubt Solver",
-                  desc: "Instant answers",
-                },
+                { icon: Mail, label: "Doubt Support", desc: "Email the admin" },
               ].map(({ icon: Icon, label, desc }) => (
                 <div
                   key={label}
@@ -471,30 +588,18 @@ export default function CourseDetailPage({
                 </div>
               ))}
             </div>
-
-            <div className="mt-6 p-4 rounded-xl bg-muted/20 border border-dashed border-border">
-              <p className="text-sm text-muted-foreground">
-                📚 Lesson content is available after enrollment. Use the Quiz
-                and Doubt Solver tabs to interact with AI-powered learning tools
-                for this course.
-              </p>
-            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="quiz">
           <div className="p-6 rounded-2xl bg-card border border-border/50">
-            <QuizSection
-              courseId={id}
-              courseTitle={course.title}
-              theme={theme}
-            />
+            <QuizSection courseId={id} theme={theme} />
           </div>
         </TabsContent>
 
         <TabsContent value="doubt">
           <div className="p-6 rounded-2xl bg-card border border-border/50">
-            <DoubtChat courseId={id} theme={theme} />
+            <DoubtContact theme={theme} />
           </div>
         </TabsContent>
       </Tabs>

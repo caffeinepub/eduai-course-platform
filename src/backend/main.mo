@@ -113,15 +113,47 @@ actor {
     };
   };
 
+  type CommunityPost = {
+    id : Nat;
+    authorPrincipal : Principal;
+    title : Text;
+    body : Text;
+    createdAt : Time.Time;
+    likeCount : Nat;
+    likes : Set.Set<Principal>;
+  };
+
+  type CommunityPostView = {
+    id : Nat;
+    authorPrincipal : Principal;
+    title : Text;
+    body : Text;
+    createdAt : Time.Time;
+    likeCount : Nat;
+    likes : [Principal];
+  };
+
+  type CommunityComment = {
+    id : Nat;
+    postId : Nat;
+    authorPrincipal : Principal;
+    body : Text;
+    createdAt : Time.Time;
+  };
+
   let courses = Map.empty<Nat, Course>();
   let categories = Map.empty<Nat, Category>();
   let users = Map.empty<Principal, User>();
   let lessons = Map.empty<Nat, Lesson>();
   let doubts = Map.empty<Principal, { courseId : Nat; question : Text; answer : Text; timestamp : Int }>();
   let quizzes = Map.empty<Nat, Quiz>();
+  let communityPosts = Map.empty<Nat, CommunityPost>();
+  let communityComments = Map.empty<Nat, CommunityComment>();
   var courseIdCounter = 0;
   var lessonIdCounter = 0;
   var categoryIdCounter = 0;
+  var postIdCounter = 0;
+  var commentIdCounter = 0;
   let usedEmails = Set.empty<Text>();
 
   // Seed default categories
@@ -242,7 +274,6 @@ actor {
     );
     usedEmails.add(userRequest.email);
 
-    // Assign role based on email
     if (isAdminEmail(userRequest.email)) {
       AccessControl.assignRole(accessControlState, caller, caller, #admin);
     } else {
@@ -251,7 +282,6 @@ actor {
   };
 
   public query ({ caller }) func getUser(user : Principal) : async User {
-    // Any authenticated user can view user profiles
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view user profiles");
     };
@@ -262,7 +292,6 @@ actor {
   };
 
   public query ({ caller }) func getAllUsers() : async [User] {
-    // Admin-only function
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can view all users");
     };
@@ -270,7 +299,6 @@ actor {
   };
 
   public shared ({ caller }) func updateUser(user : UserUpdate) : async () {
-    // Users can only update their own profile
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can update profiles");
     };
@@ -295,7 +323,6 @@ actor {
   };
 
   public shared ({ caller }) func deleteUser(user : Principal) : async () {
-    // Admin-only function
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can delete users");
     };
@@ -304,12 +331,10 @@ actor {
 
   // Category CRUD
   public shared ({ caller }) func createCategory(name : Text) : async () {
-    // Only registered users can create categories
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only registered users can create categories");
     };
 
-    // Must be 18+ to create categories (creator role requirement)
     if (not isUserOver18(caller)) {
       Runtime.trap("Unauthorized: Must be 18+ to create categories");
     };
@@ -322,7 +347,6 @@ actor {
   };
 
   public query ({ caller }) func getCategory(categoryId : Nat) : async Category {
-    // Anyone can view categories (including guests)
     switch (categories.get(categoryId)) {
       case (null) { Runtime.trap("Category does not exist") };
       case (?category) { category };
@@ -330,12 +354,10 @@ actor {
   };
 
   public query ({ caller }) func getAllCategories() : async [Category] {
-    // Anyone can view all categories (including guests)
     categories.values().toArray();
   };
 
   public shared ({ caller }) func updateCategory(categoryId : Nat, name : Text) : async () {
-    // Only the creator can update their category
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can update categories");
     };
@@ -360,7 +382,6 @@ actor {
   };
 
   public shared ({ caller }) func deleteCategory(categoryId : Nat) : async () {
-    // Admin-only function
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can delete categories");
     };
@@ -369,12 +390,10 @@ actor {
 
   // Course CRUD
   public shared ({ caller }) func createCourse(title : Text, description : Text, categoryId : Nat, thumbnail : ?Storage.ExternalBlob) : async Nat {
-    // Only registered users can create courses
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only registered users can create courses");
     };
 
-    // Must be 18+ to create courses
     if (not isUserOver18(caller)) {
       Runtime.trap("Unauthorized: Must be 18+ to create courses");
     };
@@ -400,7 +419,6 @@ actor {
   };
 
   public query ({ caller }) func getCourse(courseId : Nat) : async Course {
-    // Anyone can view courses (including guests)
     switch (courses.get(courseId)) {
       case (null) { Runtime.trap("Course does not exist") };
       case (?course) { course };
@@ -408,12 +426,10 @@ actor {
   };
 
   public query ({ caller }) func getAllCourses() : async [Course] {
-    // Anyone can view all courses (including guests)
     courses.values().toArray().sort();
   };
 
   public query ({ caller }) func searchCoursesByTitle(searchTerm : Text) : async [Course] {
-    // Anyone can search courses (including guests)
     let filteredCourses = courses.values().toArray().filter(
       func(course : Course) : Bool {
         course.title.contains(#text searchTerm);
@@ -423,7 +439,6 @@ actor {
   };
 
   public shared ({ caller }) func updateCourse(courseId : Nat, update : CourseUpdate) : async () {
-    // Only the course creator can update their course
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can update courses");
     };
@@ -451,7 +466,6 @@ actor {
   };
 
   public shared ({ caller }) func deleteCourse(courseId : Nat) : async () {
-    // Admin or course creator can delete
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can delete courses");
     };
@@ -469,7 +483,6 @@ actor {
 
   // Lesson CRUD
   public shared ({ caller }) func createLesson(update : LessonUpdate) : async Nat {
-    // Only the course creator can add lessons
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can create lessons");
     };
@@ -500,15 +513,20 @@ actor {
   };
 
   public query ({ caller }) func getLesson(lessonId : Nat) : async Lesson {
-    // Anyone can view lessons (including guests)
     switch (lessons.get(lessonId)) {
       case (null) { Runtime.trap("Lesson does not exist") };
       case (?lesson) { lesson };
     };
   };
 
+  public query ({ caller }) func getLessonsForCourse(courseId : Nat) : async [Lesson] {
+    lessons.values().toArray().filter(
+      func(l : Lesson) : Bool { l.courseId == courseId }
+    );
+  };
+
+
   public shared ({ caller }) func updateLesson(lessonId : Nat, update : LessonUpdate) : async () {
-    // Only the course creator can update lessons
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can update lessons");
     };
@@ -542,7 +560,6 @@ actor {
   };
 
   public shared ({ caller }) func deleteLesson(lessonId : Nat) : async () {
-    // Only the course creator can delete lessons
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can delete lessons");
     };
@@ -565,12 +582,10 @@ actor {
 
   // Quiz functions
   public query ({ caller }) func getQuiz(courseId : Nat) : async ?Quiz {
-    // Anyone can view quizzes (including guests)
     quizzes.get(courseId);
   };
 
   public shared ({ caller }) func createQuiz(courseId : Nat, questions : [QuizQuestion]) : async () {
-    // Only the course creator can create quizzes
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can create quizzes");
     };
@@ -587,9 +602,8 @@ actor {
     quizzes.add(courseId, { courseId; questions });
   };
 
-  // Doubt/Chat functions
+  // Doubt/Chat functions (course-specific, requires login)
   public shared ({ caller }) func askDoubt(courseId : Nat, question : Text) : async Text {
-    // Only registered users can ask doubts
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only registered users can ask doubts");
     };
@@ -598,8 +612,7 @@ actor {
       Runtime.trap("Course does not exist");
     };
 
-    // Placeholder for AI response (would use HTTP outcall in production)
-    let answer = "AI-generated answer to: " # question;
+    let answer = "AI answer feature is powered by the Grok API. Please use the Ask a Doubt chat on the homepage for instant answers.";
 
     doubts.add(
       caller,
@@ -614,12 +627,157 @@ actor {
     answer;
   };
 
+  // General doubt solving - no auth required, for homepage use
+  public func askGeneralDoubt(question : Text) : async Text {
+    "AI answer feature powered by Grok. Question received: " # question;
+  };
+
   public query ({ caller }) func getDoubtHistory(courseId : Nat) : async ?{ courseId : Nat; question : Text; answer : Text; timestamp : Int } {
-    // Users can only view their own doubt history
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view doubt history");
     };
 
     doubts.get(caller);
+  };
+
+  // Community Features
+  public shared ({ caller }) func createPost(title : Text, body : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can create posts");
+    };
+    postIdCounter += 1;
+    let newPost : CommunityPost = {
+      id = postIdCounter;
+      authorPrincipal = caller;
+      title;
+      body;
+      createdAt = Time.now();
+      likeCount = 0;
+      likes = Set.empty<Principal>();
+    };
+    communityPosts.add(postIdCounter, newPost);
+    postIdCounter;
+  };
+
+  public query ({ caller }) func getAllPosts() : async [CommunityPostView] {
+    let all = communityPosts.values().toArray();
+    all.map(
+      func(post) {
+        {
+          id = post.id;
+          authorPrincipal = post.authorPrincipal;
+          title = post.title;
+          body = post.body;
+          createdAt = post.createdAt;
+          likeCount = post.likeCount;
+          likes = post.likes.toArray();
+        };
+      }
+    );
+  };
+
+  public query ({ caller }) func getPost(id : Nat) : async ?CommunityPostView {
+    switch (communityPosts.get(id)) {
+      case (null) { null };
+      case (?post) {
+        ?{
+          id = post.id;
+          authorPrincipal = post.authorPrincipal;
+          title = post.title;
+          body = post.body;
+          createdAt = post.createdAt;
+          likeCount = post.likeCount;
+          likes = post.likes.toArray();
+        };
+      };
+    };
+  };
+
+  public shared ({ caller }) func deletePost(id : Nat) : async () {
+    switch (communityPosts.get(id)) {
+      case (null) { Runtime.trap("Post does not exist") };
+      case (?post) {
+        if (post.authorPrincipal != caller and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only the author or admin can delete posts");
+        };
+        communityPosts.remove(id);
+      };
+    };
+  };
+
+  public shared ({ caller }) func createComment(postId : Nat, body : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can comment");
+    };
+
+    switch (communityPosts.get(postId)) {
+      case (null) { Runtime.trap("Post does not exist") };
+      case (_) {
+        commentIdCounter += 1;
+        communityComments.add(
+          commentIdCounter,
+          {
+            id = commentIdCounter;
+            postId;
+            authorPrincipal = caller;
+            body;
+            createdAt = Time.now();
+          },
+        );
+        commentIdCounter;
+      };
+    };
+  };
+
+  public query ({ caller }) func getCommentsForPost(postId : Nat) : async [CommunityComment] {
+    communityComments.values().toArray().filter(
+      func(comment) { comment.postId == postId }
+    );
+  };
+
+  public shared ({ caller }) func deleteComment(commentId : Nat) : async () {
+    switch (communityComments.get(commentId)) {
+      case (null) { Runtime.trap("Comment does not exist") };
+      case (?comment) {
+        if (comment.authorPrincipal != caller and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only the author or admin can delete comments");
+        };
+        communityComments.remove(commentId);
+      };
+    };
+  };
+
+  public query ({ caller }) func hasUserLiked(postId : Nat, user : Principal) : async Bool {
+    switch (communityPosts.get(postId)) {
+      case (null) { false };
+      case (?post) { post.likes.contains(user) };
+    };
+  };
+
+  public shared ({ caller }) func likePost(postId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can like posts");
+    };
+    updateLikes(postId, caller, true);
+  };
+
+  public shared ({ caller }) func unlikePost(postId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can unlike posts");
+    };
+    updateLikes(postId, caller, false);
+  };
+
+  func updateLikes(postId : Nat, user : Principal, addLike : Bool) {
+    switch (communityPosts.get(postId)) {
+      case (null) { Runtime.trap("Post does not exist") };
+      case (?post) {
+        if (addLike and not post.likes.contains(user)) {
+          post.likes.add(user);
+        } else if (not addLike and post.likes.contains(user)) {
+          post.likes.remove(user);
+        };
+      };
+    };
   };
 };

@@ -95,6 +95,7 @@ export interface Category {
     createdAt: bigint;
     createdBy: Principal;
 }
+export type Time = bigint;
 export interface User {
     username: string;
     dateOfBirth: bigint;
@@ -133,6 +134,22 @@ export interface Course {
     thumbnail?: ExternalBlob;
     createdAt: bigint;
     description: string;
+}
+export interface CommunityPostView {
+    id: bigint;
+    title: string;
+    likeCount: bigint;
+    body: string;
+    createdAt: Time;
+    likes: Array<Principal>;
+    authorPrincipal: Principal;
+}
+export interface CommunityComment {
+    id: bigint;
+    body: string;
+    createdAt: Time;
+    authorPrincipal: Principal;
+    postId: bigint;
 }
 export interface Lesson {
     id: bigint;
@@ -184,22 +201,29 @@ export interface backendInterface {
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     askDoubt(courseId: bigint, question: string): Promise<string>;
+    askGeneralDoubt(question: string): Promise<string>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     createCategory(name: string): Promise<void>;
+    createComment(postId: bigint, body: string): Promise<bigint>;
     createCourse(title: string, description: string, categoryId: bigint, thumbnail: ExternalBlob | null): Promise<bigint>;
     createLesson(update: LessonUpdate): Promise<bigint>;
+    createPost(title: string, body: string): Promise<bigint>;
     createQuiz(courseId: bigint, questions: Array<QuizQuestion>): Promise<void>;
     createUser(userRequest: UserUpdate): Promise<void>;
     deleteCategory(categoryId: bigint): Promise<void>;
+    deleteComment(commentId: bigint): Promise<void>;
     deleteCourse(courseId: bigint): Promise<void>;
     deleteLesson(lessonId: bigint): Promise<void>;
+    deletePost(id: bigint): Promise<void>;
     deleteUser(user: Principal): Promise<void>;
     getAllCategories(): Promise<Array<Category>>;
     getAllCourses(): Promise<Array<Course>>;
+    getAllPosts(): Promise<Array<CommunityPostView>>;
     getAllUsers(): Promise<Array<User>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCategory(categoryId: bigint): Promise<Category>;
+    getCommentsForPost(postId: bigint): Promise<Array<CommunityComment>>;
     getCourse(courseId: bigint): Promise<Course>;
     getDoubtHistory(courseId: bigint): Promise<{
         question: string;
@@ -208,18 +232,23 @@ export interface backendInterface {
         courseId: bigint;
     } | null>;
     getLesson(lessonId: bigint): Promise<Lesson>;
+    getLessonsForCourse(courseId: bigint): Promise<Array<Lesson>>;
+    getPost(id: bigint): Promise<CommunityPostView | null>;
     getQuiz(courseId: bigint): Promise<Quiz | null>;
     getUser(user: Principal): Promise<User>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
+    hasUserLiked(postId: bigint, user: Principal): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
+    likePost(postId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     searchCoursesByTitle(searchTerm: string): Promise<Array<Course>>;
+    unlikePost(postId: bigint): Promise<void>;
     updateCategory(categoryId: bigint, name: string): Promise<void>;
     updateCourse(courseId: bigint, update: CourseUpdate): Promise<void>;
     updateLesson(lessonId: bigint, update: LessonUpdate): Promise<void>;
     updateUser(user: UserUpdate): Promise<void>;
 }
-import type { Course as _Course, CourseUpdate as _CourseUpdate, ExternalBlob as _ExternalBlob, Lesson as _Lesson, LessonType as _LessonType, LessonUpdate as _LessonUpdate, Quiz as _Quiz, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { CommunityPostView as _CommunityPostView, Course as _Course, CourseUpdate as _CourseUpdate, ExternalBlob as _ExternalBlob, Lesson as _Lesson, LessonType as _LessonType, LessonUpdate as _LessonUpdate, Quiz as _Quiz, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -334,6 +363,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async askGeneralDoubt(arg0: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.askGeneralDoubt(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.askGeneralDoubt(arg0);
+            return result;
+        }
+    }
     async assignCallerUserRole(arg0: Principal, arg1: UserRole): Promise<void> {
         if (this.processError) {
             try {
@@ -362,6 +405,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async createComment(arg0: bigint, arg1: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createComment(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createComment(arg0, arg1);
+            return result;
+        }
+    }
     async createCourse(arg0: string, arg1: string, arg2: bigint, arg3: ExternalBlob | null): Promise<bigint> {
         if (this.processError) {
             try {
@@ -387,6 +444,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.createLesson(await to_candid_LessonUpdate_n12(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
+    async createPost(arg0: string, arg1: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createPost(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createPost(arg0, arg1);
             return result;
         }
     }
@@ -432,6 +503,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteComment(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteComment(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteComment(arg0);
+            return result;
+        }
+    }
     async deleteCourse(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -457,6 +542,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteLesson(arg0);
+            return result;
+        }
+    }
+    async deletePost(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePost(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePost(arg0);
             return result;
         }
     }
@@ -500,6 +599,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getAllCourses();
             return from_candid_vec_n16(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getAllPosts(): Promise<Array<CommunityPostView>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllPosts();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllPosts();
+            return result;
         }
     }
     async getAllUsers(): Promise<Array<User>> {
@@ -558,6 +671,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getCommentsForPost(arg0: bigint): Promise<Array<CommunityComment>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCommentsForPost(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCommentsForPost(arg0);
+            return result;
+        }
+    }
     async getCourse(arg0: bigint): Promise<Course> {
         if (this.processError) {
             try {
@@ -605,18 +732,46 @@ export class Backend implements backendInterface {
             return from_candid_Lesson_n25(this._uploadFile, this._downloadFile, result);
         }
     }
-    async getQuiz(arg0: bigint): Promise<Quiz | null> {
+    async getLessonsForCourse(arg0: bigint): Promise<Array<Lesson>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getQuiz(arg0);
+                const result = await (this.actor as any).getLessonsForCourse(arg0);
+                return await Promise.all(result.map((x: any) => from_candid_Lesson_n25(this._uploadFile, this._downloadFile, x)));
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await (this.actor as any).getLessonsForCourse(arg0);
+            return await Promise.all(result.map((x: any) => from_candid_Lesson_n25(this._uploadFile, this._downloadFile, x)));
+        }
+    }
+    async getPost(arg0: bigint): Promise<CommunityPostView | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPost(arg0);
                 return from_candid_opt_n29(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getQuiz(arg0);
+            const result = await this.actor.getPost(arg0);
             return from_candid_opt_n29(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getQuiz(arg0: bigint): Promise<Quiz | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getQuiz(arg0);
+                return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getQuiz(arg0);
+            return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUser(arg0: Principal): Promise<User> {
@@ -647,6 +802,20 @@ export class Backend implements backendInterface {
             return from_candid_opt_n21(this._uploadFile, this._downloadFile, result);
         }
     }
+    async hasUserLiked(arg0: bigint, arg1: Principal): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.hasUserLiked(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.hasUserLiked(arg0, arg1);
+            return result;
+        }
+    }
     async isCallerAdmin(): Promise<boolean> {
         if (this.processError) {
             try {
@@ -658,6 +827,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.isCallerAdmin();
+            return result;
+        }
+    }
+    async likePost(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.likePost(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.likePost(arg0);
             return result;
         }
     }
@@ -689,6 +872,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n16(this._uploadFile, this._downloadFile, result);
         }
     }
+    async unlikePost(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.unlikePost(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.unlikePost(arg0);
+            return result;
+        }
+    }
     async updateCategory(arg0: bigint, arg1: string): Promise<void> {
         if (this.processError) {
             try {
@@ -706,14 +903,14 @@ export class Backend implements backendInterface {
     async updateCourse(arg0: bigint, arg1: CourseUpdate): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateCourse(arg0, await to_candid_CourseUpdate_n30(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.updateCourse(arg0, await to_candid_CourseUpdate_n31(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateCourse(arg0, await to_candid_CourseUpdate_n30(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.updateCourse(arg0, await to_candid_CourseUpdate_n31(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
@@ -783,7 +980,10 @@ function from_candid_opt_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 } | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Quiz]): Quiz | null {
+function from_candid_opt_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CommunityPostView]): CommunityPostView | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Quiz]): Quiz | null {
     return value.length === 0 ? null : value[0];
 }
 function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
@@ -881,8 +1081,8 @@ function from_candid_variant_n28(_uploadFile: (file: ExternalBlob) => Promise<Ui
 async function from_candid_vec_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Course>): Promise<Array<Course>> {
     return await Promise.all(value.map(async (x)=>await from_candid_Course_n17(_uploadFile, _downloadFile, x)));
 }
-async function to_candid_CourseUpdate_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CourseUpdate): Promise<_CourseUpdate> {
-    return await to_candid_record_n31(_uploadFile, _downloadFile, value);
+async function to_candid_CourseUpdate_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CourseUpdate): Promise<_CourseUpdate> {
+    return await to_candid_record_n32(_uploadFile, _downloadFile, value);
 }
 async function to_candid_ExternalBlob_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ExternalBlob): Promise<_ExternalBlob> {
     return await _uploadFile(value);
@@ -938,7 +1138,7 @@ function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         proposed_top_up_amount: value.proposed_top_up_amount ? candid_some(value.proposed_top_up_amount) : candid_none()
     };
 }
-async function to_candid_record_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+async function to_candid_record_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     categoryId: bigint;
     title: string;
     thumbnail?: ExternalBlob;

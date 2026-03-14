@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Category,
+  CommunityComment,
+  CommunityPostView,
   Course,
+  Lesson,
   LessonUpdate,
   Quiz,
   QuizQuestion,
@@ -81,6 +84,18 @@ export function useQuiz(courseId: bigint) {
   });
 }
 
+export function useLessonsForCourse(courseId: bigint) {
+  const { actor, isFetching } = useActor();
+  return useQuery<Lesson[]>({
+    queryKey: ["lessons", courseId.toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getLessonsForCourse(courseId);
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
 export function useSearchCourses(term: string) {
   const { actor, isFetching } = useActor();
   return useQuery<Course[]>({
@@ -90,6 +105,42 @@ export function useSearchCourses(term: string) {
       return actor.searchCoursesByTitle(term);
     },
     enabled: !!actor && !isFetching && term.trim().length > 0,
+  });
+}
+
+export function useAllPosts() {
+  const { actor, isFetching } = useActor();
+  return useQuery<CommunityPostView[]>({
+    queryKey: ["posts"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllPosts();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function usePost(id: bigint) {
+  const { actor, isFetching } = useActor();
+  return useQuery<CommunityPostView | null>({
+    queryKey: ["post", id.toString()],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getPost(id);
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useCommentsForPost(postId: bigint) {
+  const { actor, isFetching } = useActor();
+  return useQuery<CommunityComment[]>({
+    queryKey: ["comments", postId.toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getCommentsForPost(postId);
+    },
+    enabled: !!actor && !isFetching,
   });
 }
 
@@ -173,7 +224,6 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: async (principal: string) => {
       if (!actor) throw new Error("Not authenticated");
-      // Principal import needed
       const { Principal } = await import("@icp-sdk/core/principal");
       return actor.deleteUser(Principal.fromText(principal));
     },
@@ -205,6 +255,92 @@ export function useSaveProfile() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["callerProfile"] });
+    },
+  });
+}
+
+export function useCreatePost() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { title: string; body: string }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.createPost(params.title, params.body);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
+
+export function useDeletePost() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.deletePost(id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
+
+export function useCreateComment() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { postId: bigint; body: string }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.createComment(params.postId, params.body);
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["comments", vars.postId.toString()] });
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { commentId: bigint; postId: bigint }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.deleteComment(params.commentId);
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["comments", vars.postId.toString()] });
+    },
+  });
+}
+
+export function useLikePost() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (postId: bigint) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.likePost(postId);
+    },
+    onSuccess: (_data, postId) => {
+      qc.invalidateQueries({ queryKey: ["posts"] });
+      qc.invalidateQueries({ queryKey: ["post", postId.toString()] });
+    },
+  });
+}
+
+export function useUnlikePost() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (postId: bigint) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.unlikePost(postId);
+    },
+    onSuccess: (_data, postId) => {
+      qc.invalidateQueries({ queryKey: ["posts"] });
+      qc.invalidateQueries({ queryKey: ["post", postId.toString()] });
     },
   });
 }
