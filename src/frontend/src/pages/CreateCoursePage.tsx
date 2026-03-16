@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   BookOpen,
@@ -196,6 +197,14 @@ export default function CreateCoursePage({
     );
 
   const handleSubmit = async () => {
+    // Pre-check: profile must be set up before publishing
+    if (!profile) {
+      toast.error(
+        "Please complete your profile setup before creating a course.",
+      );
+      return;
+    }
+
     if (!categoryId) {
       toast.error("Please select a category");
       return;
@@ -222,8 +231,27 @@ export default function CreateCoursePage({
       });
       toast.success("Course created successfully!");
       onNavigate("course", { id: courseId.toString() });
-    } catch {
-      toast.error("Failed to create course. Please try again.");
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : String(err);
+      if (raw.includes("18+") || raw.includes("Must be 18")) {
+        toast.error("You must be 18 or older to create a course.");
+      } else if (
+        raw.includes("Unauthorized") ||
+        raw.includes("Only registered users") ||
+        raw.includes("Not authenticated")
+      ) {
+        toast.error(
+          "You must complete your profile setup before creating a course. Please sign out and sign in again.",
+        );
+      } else if (raw.includes("Category does not exist")) {
+        toast.error(
+          "The selected category is invalid. Please go back and select a valid category.",
+        );
+      } else if (raw.includes("Course does not exist")) {
+        toast.error("Something went wrong saving lessons. Please try again.");
+      } else {
+        toast.error(`Failed to create course: ${raw}`);
+      }
     }
   };
 
@@ -619,6 +647,25 @@ export default function CreateCoursePage({
       {/* Step 4 — Review & Publish */}
       {step === 4 && (
         <div className="space-y-6">
+          {/* Profile warning banner */}
+          {!profile && (
+            <div
+              data-ocid="create.profile_warning.error_state"
+              className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-sm text-destructive flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              Your profile is not set up. Please{" "}
+              <button
+                type="button"
+                className="underline font-medium"
+                onClick={() => onNavigate("auth")}
+              >
+                complete your profile
+              </button>{" "}
+              before publishing.
+            </div>
+          )}
+
           <div className="p-6 rounded-2xl bg-card border border-border/50">
             <h3 className="font-display text-lg font-bold text-foreground mb-4">
               Course Summary

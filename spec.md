@@ -1,46 +1,23 @@
-# EduAI Free Course Platform
+# EduAI Course Platform
 
 ## Current State
-New project. No existing code.
+The app has an Admin Dashboard (`/admin`) for the admin account. There is no Creator Dashboard for regular course creators. The navbar shows Home, Browse Courses, Community, and Admin (for admins) links, plus a Create Course button.
 
 ## Requested Changes (Diff)
 
 ### Add
-- User signup/login with age verification (must be 18+), stored in backend database
-- Single hardcoded admin account (one fixed email)
-- Course creation: only registered users (18+) can create courses; price is always 0
-- Course structure: at least 3 video sessions (YouTube/Vimeo embed URLs), plus optional PDF, image, or text content per lesson
-- Category management: course creators can add categories; admin can add or delete any category
-- Course search by title/category
-- AI-powered quiz auto-generated for every course using Gemini API (HTTP outcalls)
-- AI doubt-solving chatbot per course using Gemini API (HTTP outcalls)
-- Seasonal/festival UI themes that change automatically based on current date
-- SEO meta tags for Google discoverability
-- Role-based access: admin role, creator role, student role
+- New `CreatorDashboardPage` at `/my-dashboard` showing only the current logged-in user's courses
+- "My Dashboard" navbar link visible only to logged-in users
+- Page includes: list of creator's own courses (filtered from getAllCourses by creator principal), course stats (lesson count, has quiz), delete course option, and a link to create a new course
 
 ### Modify
-- N/A (new project)
+- `App.tsx`: add `my-dashboard` page route and import
+- `Navbar.tsx`: add "My Dashboard" link for logged-in users
 
 ### Remove
-- N/A (new project)
+- Nothing removed
 
 ## Implementation Plan
-1. Backend (Motoko):
-   - User registration with DOB field, age check (>=18 to create/upload), password hash
-   - Admin: single hardcoded principal/email; can manage categories and delete content
-   - Course CRUD: title, description, category, price (locked to 0), creatorId
-   - Lesson model: videoUrl (embed), lessonType (video/pdf/image/text), content
-   - Category CRUD
-   - Quiz model: courseId, questions (AI-generated, stored after first generation)
-   - Doubt/chat: per-course Q&A stored messages, Gemini HTTP outcall for answers
-   - HTTP outcalls to Gemini API for quiz generation and doubt solving
-   - Search: filter courses by title keyword and category
-
-2. Frontend (React + TypeScript + Tailwind):
-   - Auth pages: signup (with DOB), login
-   - Home: search bar, category filter, course cards grid
-   - Course detail: video player sessions, PDF/image/text content, AI quiz section, AI doubt chat
-   - Course creation form: title, description, category, add lessons (video URL + optional PDF/image/text)
-   - Admin dashboard: category management, course/user management
-   - Seasonal theme: detect current month/date, apply festival color palette (Holi, Diwali, Christmas, New Year, etc.)
-   - SEO: meta tags in index.html
+1. Create `CreatorDashboardPage.tsx` that fetches all courses, filters by the caller's principal, and displays them in a card grid with delete and view actions
+2. Add route in `App.tsx`
+3. Add navbar link in `Navbar.tsx` for logged-in users

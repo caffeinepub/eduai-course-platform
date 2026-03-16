@@ -466,8 +466,8 @@ actor {
   };
 
   public shared ({ caller }) func deleteCourse(courseId : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can delete courses");
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user)) and not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only users or admins can delete courses");
     };
 
     switch (courses.get(courseId)) {

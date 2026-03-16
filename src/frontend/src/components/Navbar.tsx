@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Brain, Plus } from "lucide-react";
+import { Brain, LayoutDashboard, Plus } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useIsAdmin } from "../hooks/useQueries";
 import type { ThemeConfig } from "../utils/seasonalTheme";
@@ -68,6 +68,21 @@ export default function Navbar({
             >
               Browse Courses
             </button>
+            {isLoggedIn && (
+              <button
+                type="button"
+                data-ocid="nav.my_dashboard_link"
+                onClick={() => onNavigate("my-dashboard")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  currentPage === "my-dashboard"
+                    ? "text-foreground bg-white/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                My Dashboard
+              </button>
+            )}
             <button
               type="button"
               data-ocid="nav.community_link"

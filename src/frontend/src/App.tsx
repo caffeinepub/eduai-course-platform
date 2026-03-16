@@ -8,6 +8,7 @@ import CommunityPage from "./pages/CommunityPage";
 import CommunityPostPage from "./pages/CommunityPostPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CreateCoursePage from "./pages/CreateCoursePage";
+import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import HomePage from "./pages/HomePage";
 import { applySeasonalTheme, getSeasonalTheme } from "./utils/seasonalTheme";
 
@@ -18,7 +19,8 @@ type PageId =
   | "admin"
   | "auth"
   | "community"
-  | "community-post";
+  | "community-post"
+  | "my-dashboard";
 
 interface NavState {
   page: PageId;
@@ -38,6 +40,7 @@ function parsePathToState(): NavState {
   if (path === "/community") return { page: "community", params: {} };
   if (path === "/create-course") return { page: "create-course", params: {} };
   if (path === "/admin") return { page: "admin", params: {} };
+  if (path === "/my-dashboard") return { page: "my-dashboard", params: {} };
   if (path === "/login" || path === "/auth")
     return { page: "auth", params: {} };
   return { page: "home", params: {} };
@@ -64,6 +67,7 @@ export default function App() {
     else if (navState.page === "community") path = "/community";
     else if (navState.page === "create-course") path = "/create-course";
     else if (navState.page === "admin") path = "/admin";
+    else if (navState.page === "my-dashboard") path = "/my-dashboard";
     else if (navState.page === "auth") path = "/login";
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
@@ -137,6 +141,14 @@ export default function App() {
         return (
           <CommunityPostPage
             postId={navState.params.id ?? "0"}
+            theme={theme}
+            onNavigate={navigate}
+            isLoggedIn={isLoggedIn}
+          />
+        );
+      case "my-dashboard":
+        return (
+          <CreatorDashboardPage
             theme={theme}
             onNavigate={navigate}
             isLoggedIn={isLoggedIn}
